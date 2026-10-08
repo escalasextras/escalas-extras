@@ -10,3 +10,7 @@ export function refresh(...paths: string[]) {
   paths.forEach((p) => revalidatePath(p));
 }
 export const cleanErr = (m?: string | null) => m ?? "Não foi possível concluir.";
+
+// Mensagem amigável quando o registro já está em uso (chave estrangeira)
+export const delErr = (e: { code?: string; message?: string }) =>
+  e.code === "23503" ? "Não dá para excluir: já tem registros ligados a isso. Use Desativar." : (e.message ?? "Não foi possível excluir.");

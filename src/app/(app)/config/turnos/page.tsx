@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requireDp, pickSector } from "@/lib/ctx";
 import { Empty, Flash, Page, SectorPicker } from "@/components/ui";
-import { back, refresh } from "@/lib/act";
+import { back, refresh, delErr } from "@/lib/act";
+import DeleteButton from "@/components/DeleteButton";
 import { hm } from "@/lib/util";
 
 async function criar(formData: FormData) {
@@ -27,6 +28,16 @@ async function alternar(formData: FormData) {
   back(`/config/turnos?s=${s}`);
 }
 
+async function excluir(formData: FormData) {
+  "use server";
+  const ctx = await requireDp();
+  const to = `/config/turnos?s=${String(formData.get("s"))}`;
+  const { error } = await ctx.sb.from("shifts").delete().eq("id", String(formData.get("id")));
+  if (error) back(to, delErr(error));
+  refresh("/config/turnos");
+  back(to, "Turno excluído.", "ok");
+}
+
 export default async function Turnos({ searchParams }: { searchParams: { s?: string; erro?: string; ok?: string } }) {
   const ctx = await requireDp();
   const { data: sectors } = await ctx.sb.from("sectors").select("id,name").eq("house_id", ctx.house.id).eq("active", true).order("name");
@@ -50,10 +61,16 @@ export default async function Turnos({ searchParams }: { searchParams: { s?: str
         {(data ?? []).map((r) => (
           <li key={r.id} className={"card flex items-center justify-between gap-2 " + (r.active ? "" : "opacity-60")}>
             <div><div className="font-semibold">{r.name}</div><div className="muted">{hm(r.start_time)} às {hm(r.end_time)}</div></div>
-            <form action={alternar}>
+            <div className="flex shrink-0 gap-2">
+              <form action={alternar}>
               <input type="hidden" name="id" value={r.id} /><input type="hidden" name="s" value={sector.id} /><input type="hidden" name="to" value={r.active ? "0" : "1"} />
               <button className="chip">{r.active ? "Desativar" : "Ativar"}</button>
             </form>
+              <form action={excluir}>
+                <input type="hidden" name="id" value={r.id} /><input type="hidden" name="s" value={sector.id} />
+                <DeleteButton what="este turno" />
+              </form>
+            </div>
           </li>
         ))}
       </ul>

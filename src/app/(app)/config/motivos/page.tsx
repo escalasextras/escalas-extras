@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requireDp } from "@/lib/ctx";
 import { Flash, Page } from "@/components/ui";
-import { back, refresh } from "@/lib/act";
+import { back, refresh, delErr } from "@/lib/act";
+import DeleteButton from "@/components/DeleteButton";
 
 async function criar(formData: FormData) {
   "use server";
@@ -25,6 +26,16 @@ async function alternar(formData: FormData) {
   back("/config/motivos");
 }
 
+async function excluir(formData: FormData) {
+  "use server";
+  const ctx = await requireDp();
+  const to = "/config/motivos";
+  const { error } = await ctx.sb.from("extra_reasons").delete().eq("id", String(formData.get("id")));
+  if (error) back(to, delErr(error));
+  refresh("/config/motivos");
+  back(to, "Motivo excluído.", "ok");
+}
+
 export default async function Motivos({ searchParams }: { searchParams: { erro?: string; ok?: string } }) {
   const ctx = await requireDp();
   const { data } = await ctx.sb.from("extra_reasons").select("*").eq("house_id", ctx.house.id).order("active", { ascending: false }).order("name");
@@ -43,10 +54,16 @@ export default async function Motivos({ searchParams }: { searchParams: { erro?:
               <div className="font-semibold">{r.name}</div>
               <div className="muted">{[r.needs_absent_person && "pede quem faltou", (r.needs_note || r.name === "Outro") && "exige observação", r.is_test && "teste"].filter(Boolean).join(" · ") || "—"}</div>
             </div>
-            <form action={alternar}>
+            <div className="flex shrink-0 gap-2">
+              <form action={alternar}>
               <input type="hidden" name="id" value={r.id} /><input type="hidden" name="to" value={r.active ? "0" : "1"} />
               <button className="chip shrink-0">{r.active ? "Desativar" : "Ativar"}</button>
             </form>
+              <form action={excluir}>
+                <input type="hidden" name="id" value={r.id} />
+                <DeleteButton what="este motivo" />
+              </form>
+            </div>
           </li>
         ))}
       </ul>

@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCtx } from "@/lib/ctx";
 import { Flash, Page } from "@/components/ui";
-import { back, refresh } from "@/lib/act";
+import { back, refresh, delErr } from "@/lib/act";
+import { redirect } from "next/navigation";
+import DeleteButton from "@/components/DeleteButton";
 import { dmy, fmtCpf, maskCpf, onlyDigits, today } from "@/lib/util";
 
 async function salvar(formData: FormData) {
@@ -76,6 +78,18 @@ async function ativar(formData: FormData) {
   if (error) back(`/equipe/${id}`, error.message);
   refresh("/equipe");
   back(`/equipe/${id}`, formData.get("to") === "1" ? "Pessoa reativada." : "Pessoa inativada.", "ok");
+}
+
+async function excluir(formData: FormData) {
+  "use server";
+  const ctx = await getCtx();
+  if (!ctx.isDp) back("/equipe", "Só Gestor ou DP exclui pessoas.");
+  const id = String(formData.get("id"));
+  const sid = String(formData.get("sid") ?? "");
+  const { error } = await ctx.sb.from("people").delete().eq("id", id);
+  if (error) back(`/equipe/${id}`, delErr(error).replace("Use Desativar", "Use Inativar pessoa"));
+  refresh("/equipe");
+  redirect(`/equipe?s=${sid}`);
 }
 
 export default async function Pessoa({ params, searchParams }: { params: { id: string }; searchParams: { erro?: string; ok?: string } }) {
@@ -179,6 +193,13 @@ export default async function Pessoa({ params, searchParams }: { params: { id: s
         <input type="hidden" name="id" value={p.id} /><input type="hidden" name="to" value={p.active ? "0" : "1"} />
         <button className={p.active ? "btn-danger" : "btn-ghost"}>{p.active ? "Inativar pessoa" : "Reativar pessoa"}</button>
       </form>
+
+      {ctx.isDp && (
+        <form action={excluir}>
+          <input type="hidden" name="id" value={p.id} /><input type="hidden" name="sid" value={p.sector_id} />
+          <DeleteButton what="esta pessoa" />
+        </form>
+      )}
     </Page>
   );
 }

@@ -6,3 +6,4 @@ create or replace function public.is_dp(h uuid) returns boolean
 language sql stable security definer set search_path = public as $$
   select public.my_role() in ('admin','dp','manager') and public.in_house(h)
 $$;
+create policy people_delete on public.people for delete using (public.is_dp(house_id));
