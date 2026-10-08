@@ -12,14 +12,15 @@ async function criar(formData: FormData) {
   if (!name) back(`/equipe/nova?s=${sector_id}`, "Informe o nome.");
   const cpf = onlyDigits(String(formData.get("cpf") ?? ""));
   if (cpf && cpf.length !== 11) back(`/equipe/nova?s=${sector_id}`, "CPF deve ter 11 números.");
-  const kind = String(formData.get("kind"));
-  if ((kind === "freelancer" || kind === "candidate") && !cpf) back(`/equipe/nova?s=${sector_id}`, "CPF é obrigatório para freelancer e candidato.");
+  const kind = String(formData.get("kind") ?? "employee");
+  const position_id = String(formData.get("position_id") ?? "");
+  if (!position_id) back(`/equipe/nova?s=${sector_id}`, "Escolha o cargo.");
   const { error } = await ctx.sb.from("people").insert({
     house_id: ctx.house.id,
     sector_id,
     name,
     kind,
-    position_id: String(formData.get("position_id") ?? "") || null,
+    position_id,
     cpf: cpf || null,
     phone: String(formData.get("phone") ?? "").trim() || null,
     pix: String(formData.get("pix") ?? "").trim() || null,
@@ -39,25 +40,31 @@ export default async function Nova({ searchParams }: { searchParams: { s?: strin
       <Flash msg={searchParams.erro} />
       <form action={criar} className="space-y-4">
         <input type="hidden" name="sector_id" value={sector.id} />
-        <div><label className="label">Nome completo</label><input name="name" className="input" required autoComplete="off" /></div>
-        <div>
-          <label className="label">Tipo</label>
-          <select name="kind" className="input" defaultValue="employee">
-            <option value="employee">Funcionário</option>
-            <option value="freelancer">Freelancer</option>
-            <option value="candidate">Candidato (teste)</option>
-          </select>
-        </div>
+        <div><label className="label">Nome</label><input name="name" className="input" required autoComplete="off" /></div>
         <div>
           <label className="label">Cargo</label>
-          <select name="position_id" className="input" defaultValue="">
-            <option value="">Sem cargo</option>
+          <select name="position_id" className="input" defaultValue="" required>
+            <option value="" disabled>Escolha o cargo</option>
             {(positions ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
+          {(positions ?? []).length === 0 && <p className="mt-1 text-sm text-stone-500">Nenhum cargo cadastrado ainda. Cadastre em Config → Cargos.</p>}
         </div>
-        <div><label className="label">CPF</label><input name="cpf" className="input" inputMode="numeric" placeholder="somente números" /></div>
-        <div><label className="label">Telefone</label><input name="phone" className="input" inputMode="tel" /></div>
-        <div><label className="label">Chave PIX</label><input name="pix" className="input" autoCapitalize="none" /></div>
+        <details className="rounded-xl border border-stone-200 bg-white p-3">
+          <summary className="cursor-pointer text-sm font-medium text-stone-600">Mais dados (opcional)</summary>
+          <div className="mt-3 space-y-4">
+            <div>
+              <label className="label">Tipo</label>
+              <select name="kind" className="input" defaultValue="employee">
+                <option value="employee">Funcionário</option>
+                <option value="freelancer">Freelancer</option>
+                <option value="candidate">Candidato (teste)</option>
+              </select>
+            </div>
+            <div><label className="label">CPF</label><input name="cpf" className="input" inputMode="numeric" placeholder="somente números" /></div>
+            <div><label className="label">Telefone</label><input name="phone" className="input" inputMode="tel" /></div>
+            <div><label className="label">Chave PIX</label><input name="pix" className="input" autoCapitalize="none" /></div>
+          </div>
+        </details>
         <button className="btn">Salvar</button>
       </form>
     </Page>
