@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "./supabase/server";
 
-export type Role = "admin" | "dp" | "leader";
+export type Role = "admin" | "dp" | "manager" | "leader";
 export type Profile = { id: string; username: string; full_name: string; role: Role };
 export type House = { id: string; name: string };
 export type Sector = { id: string; name: string };

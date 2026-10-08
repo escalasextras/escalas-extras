@@ -77,7 +77,7 @@ export default async function Usuario({ params, searchParams }: { params: { id: 
         <div>
           <label className="label">Perfil</label>
           <select name="role" className="input" defaultValue={u.role}>
-            <option value="leader">Líder</option><option value="dp">DP</option><option value="admin">Admin</option>
+            <option value="leader">Líder</option><option value="manager">Gestor</option><option value="dp">DP</option><option value="admin">Admin</option>
           </select>
         </div>
         <label className="flex min-h-[44px] items-center gap-3"><input type="checkbox" name="active" defaultChecked={u.active} className="h-5 w-5 accent-teal-700" /> Usuário ativo</label>
@@ -98,6 +98,7 @@ export default async function Usuario({ params, searchParams }: { params: { id: 
           <input type="hidden" name="id" value={u.id} />
           <h2 className="font-semibold">Casas e setores</h2>
           {u.role === "leader" && <p className="muted">O Líder só enxerga os setores marcados.</p>}
+          {u.role === "manager" && <p className="muted">O Gestor configura e vê tudo nas casas marcadas (pode ser mais de uma).</p>}
           {(houses ?? []).map((h) => (
             <div key={h.id} className="card space-y-1">
               <label className="flex min-h-[44px] items-center gap-3 font-semibold">

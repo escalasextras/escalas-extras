@@ -42,7 +42,7 @@ export default async function Usuarios({ searchParams }: { searchParams: { erro?
           <div>
             <label className="label">Perfil</label>
             <select name="role" className="input" defaultValue="leader">
-              <option value="leader">Líder</option><option value="dp">DP</option><option value="admin">Admin</option>
+              <option value="leader">Líder</option><option value="manager">Gestor</option><option value="dp">DP</option><option value="admin">Admin</option>
             </select>
           </div>
           <button className="btn">Criar usuário</button>

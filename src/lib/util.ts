@@ -55,4 +55,4 @@ export const STATUS_STYLE: Record<string, string> = {
   rejected: "bg-red-100 text-red-800",
   cancelled: "bg-stone-200 text-stone-600",
 };
-export const ROLE_LABEL: Record<string, string> = { admin: "Admin", dp: "DP", leader: "Líder" };
+export const ROLE_LABEL: Record<string, string> = { admin: "Admin", dp: "DP", manager: "Gestor", leader: "Líder" };
