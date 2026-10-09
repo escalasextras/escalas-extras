@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCtx, getSectors, pickSector } from "@/lib/ctx";
 import { Flash, Page } from "@/components/ui";
-import { back } from "@/lib/act";
+import { back, refresh } from "@/lib/act";
+import SubmitButton from "@/components/SubmitButton";
 import { onlyDigits } from "@/lib/util";
 
 async function criar(formData: FormData) {
@@ -26,7 +27,8 @@ async function criar(formData: FormData) {
     pix: String(formData.get("pix") ?? "").trim() || null,
   });
   if (error) back(`/equipe/nova?s=${sector_id}`, error.message);
-  redirect(`/equipe?s=${sector_id}`);
+  refresh("/equipe");
+  back(`/equipe?s=${sector_id}`, `${name} salvo(a).`, "ok");
 }
 
 export default async function Nova({ searchParams }: { searchParams: { s?: string; erro?: string } }) {
@@ -65,7 +67,7 @@ export default async function Nova({ searchParams }: { searchParams: { s?: strin
             <div><label className="label">Chave PIX</label><input name="pix" className="input" autoCapitalize="none" /></div>
           </div>
         </details>
-        <button className="btn">Salvar</button>
+        <SubmitButton>Salvar</SubmitButton>
       </form>
     </Page>
   );

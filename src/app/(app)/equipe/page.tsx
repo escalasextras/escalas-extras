@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { getCtx, getSectors, pickSector } from "@/lib/ctx";
-import { Empty, Page, SectorPicker } from "@/components/ui";
+import { Empty, Flash, Page, SectorPicker } from "@/components/ui";
 import { maskCpf } from "@/lib/util";
 
 const KIND: Record<string, string> = { employee: "Funcionário", freelancer: "Freelancer", candidate: "Candidato" };
 
-export default async function Equipe({ searchParams }: { searchParams: { s?: string; ver?: string } }) {
+export default async function Equipe({ searchParams }: { searchParams: { s?: string; ver?: string; ok?: string; erro?: string } }) {
   const ctx = await getCtx();
   const sectors = await getSectors(ctx);
   const sector = pickSector(sectors, searchParams.s);
@@ -21,6 +21,7 @@ export default async function Equipe({ searchParams }: { searchParams: { s?: str
 
   return (
     <Page title="Equipe" sub={sector.name} action={<Link href={`/equipe/nova?s=${sector.id}`} className="chip chip-on">+ Pessoa</Link>}>
+      <Flash msg={searchParams.ok} tone="ok" /><Flash msg={searchParams.erro} />
       <SectorPicker sectors={sectors} current={sector.id} base="/equipe" />
       <div className="flex gap-2">
         <Link href={`/equipe?s=${sector.id}`} className={`chip ${!inactive ? "chip-on" : ""}`}>Ativos</Link>
