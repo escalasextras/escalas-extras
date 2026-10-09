@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const W = 842, H = 595, M = 28;
-  const nameW = 150, colW = (W - 2 * M - nameW) / 7, rowH = 22;
+  const nameW = 150, colW = (W - 2 * M - nameW) / 7, rowH = 15;
   const ink = rgb(0.08, 0.13, 0.11), teal = rgb(0.05, 0.42, 0.38), grey = rgb(0.45, 0.47, 0.46), line = rgb(0.85, 0.87, 0.86);
 
   const fit = (t: string, f: PDFFont, size: number, max: number) => {
@@ -60,28 +60,34 @@ export async function GET(req: NextRequest) {
   };
   const sent = (schs ?? []).length > 0 && (schs ?? []).every((x) => x.status === "sent");
   let page!: PDFPage; let y = 0;
-  const newPage = (title: string) => {
+  const newPage = () => {
     page = pdf.addPage([W, H]);
-    page.drawRectangle({ x: 0, y: H - 52, width: W, height: 52, color: rgb(0.08, 0.13, 0.11) });
-    page.drawText(ctx.house.name, { x: M, y: H - 32, size: 16, font: bold, color: rgb(1, 1, 1) });
-    page.drawText(`Escala ${dm(days[0])} a ${dmy(days[6])}  ·  ${sent ? "Enviada ao DP" : "Rascunho"}`, { x: W - M - 280, y: H - 30, size: 10, font, color: rgb(0.85, 0.9, 0.88) });
-    page.drawText(title, { x: M, y: H - 76, size: 13, font: bold, color: teal });
-    y = H - 96;
+    page.drawRectangle({ x: 0, y: H - 34, width: W, height: 34, color: rgb(0.08, 0.13, 0.11) });
+    page.drawText(ctx.house.name, { x: M, y: H - 22, size: 13, font: bold, color: rgb(1, 1, 1) });
+    page.drawText(`Escala ${dm(days[0])} a ${dmy(days[6])}  ·  ${sent ? "Enviada ao DP" : "Rascunho"}`, { x: W - M - 230, y: H - 21, size: 9, font, color: rgb(0.85, 0.9, 0.88) });
+    y = H - 50;
   };
   const header = () => {
-    page.drawRectangle({ x: M, y: y - rowH + 6, width: W - 2 * M, height: rowH, color: rgb(0.93, 0.95, 0.94) });
-    page.drawText("Nome", { x: M + 6, y: y - 8, size: 9, font: bold, color: ink });
-    days.forEach((d, i) => page.drawText(`${weekday(d)} ${dm(d)}`, { x: M + nameW + i * colW + 6, y: y - 8, size: 9, font: bold, color: ink }));
+    page.drawText(cur, { x: M, y: y - 2, size: 10, font: bold, color: teal });
+    y -= 12;
+    page.drawRectangle({ x: M, y: y - rowH + 4, width: W - 2 * M, height: rowH, color: rgb(0.93, 0.95, 0.94) });
+    page.drawText("Nome", { x: M + 4, y: y - 7, size: 7.5, font: bold, color: ink });
+    days.forEach((d, i) => page.drawText(`${weekday(d)} ${dm(d)}`, { x: M + nameW + i * colW + 4, y: y - 7, size: 7.5, font: bold, color: ink }));
     y -= rowH;
   };
   const row = (name: string, sub: string, cells: string[], extra = false) => {
-    if (y < M + rowH) { newPage(cur); header(); }
-    page.drawLine({ start: { x: M, y: y + 6 }, end: { x: W - M, y: y + 6 }, thickness: 0.5, color: line });
-    page.drawText(fit(name, bold, 9, nameW - 10), { x: M + 6, y: y - 6, size: 9, font: bold, color: ink });
-    if (sub) page.drawText(fit(sub, font, 7, nameW - 10), { x: M + 6, y: y - 15, size: 7, font, color: grey });
+    if (y < M + rowH) { newPage(); header(); }
+    page.drawLine({ start: { x: M, y: y + 4 }, end: { x: W - M, y: y + 4 }, thickness: 0.4, color: line });
+    const nm = fit(name, bold, 7.5, nameW - 8);
+    page.drawText(nm, { x: M + 4, y: y - 6, size: 7.5, font: bold, color: ink });
+    if (sub) {
+      const left = nameW - 8 - bold.widthOfTextAtSize(nm, 7.5) - 4;
+      if (left > 20) page.drawText(fit(sub, font, 6, left), { x: M + 4 + bold.widthOfTextAtSize(nm, 7.5) + 4, y: y - 6, size: 6, font, color: grey });
+    }
     cells.forEach((c, i) => {
       const off = c === "FOLGA", none = c === "-" || c === "";
-      page.drawText(fit(c, off || extra ? bold : font, 8, colW - 8), { x: M + nameW + i * colW + 6, y: y - 8, size: 8, font: off || extra ? bold : font, color: none ? grey : off ? rgb(0.7, 0.35, 0.1) : extra ? teal : ink });
+      const f = off || extra ? bold : font;
+      page.drawText(fit(c, f, 7, colW - 6), { x: M + nameW + i * colW + 4, y: y - 6, size: 7, font: f, color: none ? grey : off ? rgb(0.7, 0.35, 0.1) : extra ? teal : ink });
     });
     y -= rowH;
   };
@@ -89,7 +95,8 @@ export async function GET(req: NextRequest) {
 
   for (const sec of shown) {
     cur = sec.name;
-    newPage(sec.name);
+    const need = rowH * 4 + 24;
+    if (!page || y < M + need) newPage(); else y -= 10;
     header();
     for (const p of (people ?? []).filter((x: any) => x.sector_id === sec.id) as any[]) {
       row(p.name, p.positions?.name ?? "", days.map((d) => cell(p, d)));
@@ -108,7 +115,7 @@ export async function GET(req: NextRequest) {
       row(`EXTRA: ${list[0].people?.name ?? ""}`, list[0].positions?.name ?? "", cells, true);
     }
     if (!(people ?? []).some((x: any) => x.sector_id === sec.id) && !ex.length) {
-      page.drawText("Sem equipe cadastrada neste setor.", { x: M, y: y - 8, size: 10, font, color: grey });
+      page.drawText("Sem equipe cadastrada neste setor.", { x: M + 4, y: y - 6, size: 8, font, color: grey }); y -= rowH;
     }
   }
   pdf.getPages().forEach((p, i, all) => p.drawText(`Gerado em ${dmy(today())}  ·  página ${i + 1} de ${all.length}`, { x: M, y: 14, size: 7, font, color: grey }));
