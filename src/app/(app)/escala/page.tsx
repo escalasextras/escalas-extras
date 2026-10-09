@@ -165,7 +165,7 @@ async function enviar(formData: FormData) {
     if (error) back(retUrl(f, w, d), error.message);
   }
   refresh("/escala");
-  back(retUrl(f, w, d), "Escala enviada ao DP.", "ok");
+  back(retUrl(f, w, d), "Escala enviada ao DP. Use “Baixar PDF da semana” para receber o PDF.", "ok");
 }
 
 export default async function Escala({ searchParams }: { searchParams: { s?: string; w?: string; d?: string; erro?: string; ok?: string } }) {
@@ -372,6 +372,7 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
 
       <div className="space-y-2 pt-2">
         <Link href={`/extras/nova?${filter ? `s=${filter.id}&` : ""}d=${day}`} className="btn-ghost flex items-center justify-center">+ Criar vaga extra em {dm(day)}</Link>
+        <a href={`/api/escala-pdf?${f ? `s=${f}&` : ""}w=${week}`} target="_blank" rel="noreferrer" className="btn-ghost flex items-center justify-center">Baixar PDF da semana</a>
         <form action={enviar}>{hidden({ t: ids.join(",") })}<button className="btn">{allSent ? "Reenviar escala" : filter ? "Enviar escala ao DP" : "Enviar todas as escalas ao DP"}</button></form>
         <form action={copiar}>{hidden({ t: ids.join(",") })}<button className="btn-ghost">Copiar semana anterior</button></form>
       </div>
