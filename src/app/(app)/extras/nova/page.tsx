@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCtx, getSectors, pickSector } from "@/lib/ctx";
-import { Empty, Flash, Page, SectorPicker } from "@/components/ui";
+import { getCtx, getSectors } from "@/lib/ctx";
+import { Empty, Flash, Page } from "@/components/ui";
 import { back, refresh } from "@/lib/act";
 import { brl, dm, hm, today, weekday } from "@/lib/util";
 
@@ -32,8 +32,25 @@ async function criar(formData: FormData) {
 export default async function Nova({ searchParams }: { searchParams: SP }) {
   const ctx = await getCtx();
   const sectors = await getSectors(ctx);
-  const sector = pickSector(sectors, searchParams.s);
-  if (!sector) redirect("/extras");
+  if (sectors.length === 0) redirect("/extras");
+  const sector = sectors.find((x) => x.id === searchParams.s) ?? (sectors.length === 1 ? sectors[0] : null);
+  if (!sector) {
+    // primeiro passo: escolher o setor (é um campo da vaga, não um filtro)
+    return (
+      <Page title="Nova vaga de extra" sub="Para qual setor?" action={<Link href="/extras" className="chip">Voltar</Link>}>
+        <form method="get" action="/extras/nova" className="card space-y-4">
+          <div>
+            <label className="label">Setor</label>
+            <select name="s" className="input" required defaultValue="">
+              <option value="" disabled>Escolha o setor</option>
+              {sectors.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+            </select>
+          </div>
+          <button className="btn">Continuar</button>
+        </form>
+      </Page>
+    );
+  }
   const sp: SP = { ...searchParams, s: sector.id };
 
   const [{ data: shifts }, { data: reasons }] = await Promise.all([
@@ -60,6 +77,7 @@ export default async function Nova({ searchParams }: { searchParams: SP }) {
   if (step === 5 && person) step = 6;
 
   const recap: [string, string, string][] = [];
+  if (sectors.length > 1) recap.push(["Setor", sector.name, url(sp, { s: "", d: "", sh: "", pos: "", rs: "", ab: "", p: "" })]);
   if (shift && date) recap.push(["Quando", `${weekday(date)} ${dm(date)} · ${shift.name} ${hm(shift.start_time)}–${hm(shift.end_time)}`, url(sp, { sh: "", pos: "", rs: "", ab: "", p: "" })]);
   if (position) recap.push(["Cargo", position.name, url(sp, { pos: "", rs: "", ab: "", p: "" })]);
   if (reason) recap.push(["Motivo", reason.name, url(sp, { rs: "", ab: "", p: "" })]);
@@ -100,8 +118,7 @@ export default async function Nova({ searchParams }: { searchParams: SP }) {
 
   return (
     <Page title="Nova vaga de extra" sub={sector.name} action={<Link href={`/extras?s=${sector.id}`} className="chip">Voltar</Link>}>
-      <SectorPicker sectors={sectors} current={sector.id} base="/extras/nova" />
-      <Flash msg={searchParams.erro} />
+            <Flash msg={searchParams.erro} />
 
       {recap.length > 0 && (
         <ul className="card divide-y divide-stone-100 !p-0">

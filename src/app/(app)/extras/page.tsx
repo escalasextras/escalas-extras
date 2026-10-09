@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { getCtx, getSectors, pickSector } from "@/lib/ctx";
-import { Empty, Flash, Page } from "@/components/ui";
+import { getCtx, getSectors } from "@/lib/ctx";
+import { Empty, Flash, Page, SectorFilter } from "@/components/ui";
 import ExtraCard, { EXTRA_SELECT, type ExtraRow } from "@/components/ExtraCard";
 import { today } from "@/lib/util";
 
@@ -14,12 +14,13 @@ const FILTERS = [
 export default async function Extras({ searchParams }: { searchParams: { s?: string; f?: string; erro?: string; ok?: string } }) {
   const ctx = await getCtx();
   const sectors = await getSectors(ctx);
-  const sector = ctx.isDp ? (sectors.find((x) => x.id === searchParams.s) ?? null) : pickSector(sectors, searchParams.s);
+  const sector = sectors.find((x) => x.id === searchParams.s) ?? null;
   const f = searchParams.f ?? "pending";
 
   let q = ctx.sb.from("extra_requests").select(EXTRA_SELECT).eq("house_id", ctx.house.id)
     .order("work_date", { ascending: false }).order("requested_at", { ascending: false }).limit(80);
   if (sector) q = q.eq("sector_id", sector.id);
+  else if (!ctx.isDp) q = q.in("sector_id", sectors.map((x) => x.id));
   if (f === "pending") q = q.eq("status", "pending");
   if (f === "approved") q = q.eq("status", "approved");
   if (f === "confirmar") q = q.eq("status", "approved").is("attendance", null).lte("work_date", today());
@@ -31,12 +32,7 @@ export default async function Extras({ searchParams }: { searchParams: { s?: str
   return (
     <Page title="Extras" sub={sector?.name ?? "Todos os setores"}
       action={<Link href={`/extras/nova${sector ? `?s=${sector.id}` : ""}`} className="chip chip-on">+ Nova vaga</Link>}>
-      {sectors.length > 1 && (
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-          {ctx.isDp && <Link href={`/extras?f=${f}`} className={`chip shrink-0 ${!sector ? "chip-on" : ""}`}>Todos</Link>}
-          {sectors.map((s) => <Link key={s.id} href={`/extras?s=${s.id}&f=${f}`} className={`chip shrink-0 ${sector?.id === s.id ? "chip-on" : ""}`}>{s.name}</Link>)}
-        </div>
-      )}
+      <SectorFilter sectors={sectors} current={sector?.id} base="/extras" params={`f=${f}`} />
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {FILTERS.map(([k, label]) => (
           <Link key={k} href={`/extras?${sp}f=${k}`} className={`chip shrink-0 ${f === k ? "chip-on" : ""}`}>{label}</Link>

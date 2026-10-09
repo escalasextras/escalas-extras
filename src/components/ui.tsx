@@ -29,6 +29,24 @@ export function SectorPicker({ sectors, current, base, extra = "" }: { sectors: 
   );
 }
 
+// Filtro de setor: "Todos" + um botão por setor. Só filtra, não define nada.
+export function SectorFilter({ sectors, current, base, params = "", counts }: { sectors: Sector[]; current?: string | null; base: string; params?: string; counts?: { all: number; by: Map<string, number> } }) {
+  if (sectors.length < 2) return null;
+  const q = (extra: string) => `${base}?${[extra, params].filter(Boolean).join("&")}`.replace(/\?$/, "");
+  return (
+    <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" aria-label="Filtrar por setor">
+      <Link href={q("")} className={`chip shrink-0 ${!current ? "chip-on" : ""}`}>
+        Todos{counts && <span className="ml-1.5 opacity-70">{counts.all}</span>}
+      </Link>
+      {sectors.map((s) => (
+        <Link key={s.id} href={q(`s=${s.id}`)} className={`chip shrink-0 ${current === s.id ? "chip-on" : ""}`}>
+          {s.name}{counts && <span className="ml-1.5 opacity-70">{counts.by.get(s.id) ?? 0}</span>}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 export function Empty({ children }: { children: React.ReactNode }) {
   return <div className="card muted text-center">{children}</div>;
 }
