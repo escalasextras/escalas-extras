@@ -271,6 +271,9 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
                   <h2 className="font-display text-base font-bold">{sh.name} <span className="text-sm font-medium text-stone-500">{hm(sh.start_time)}–{hm(sh.end_time)}</span></h2>
                   <span className="muted">{filter ? "" : `${sectorName.get(sh.sector_id)} · `}{here.length} presente(s)</span>
                 </div>
+                <Link href={`/extras/nova?s=${sh.sector_id}&d=${day}&sh=${sh.id}`} className="mb-2 flex min-h-[44px] items-center justify-center rounded-xl border border-dashed border-teal-700 text-sm font-semibold text-teal-700 active:bg-teal-50">
+                  + Criar vaga extra neste turno
+                </Link>
                 {here.length === 0
                   ? <p className="muted rounded-xl border border-dashed border-stone-300 p-3">Ninguém neste turno. Vincule o turno base na ficha da pessoa (Equipe) ou use “Escalar em um turno hoje”.</p>
                   : <ul className="space-y-2">{here.map((x) => <Person key={x.p.id} p={x.p} st={x.st} />)}</ul>}
@@ -295,6 +298,7 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
       )}
 
       <div className="space-y-2 pt-2">
+        <Link href={`/extras/nova?${filter ? `s=${filter.id}&` : ""}d=${day}`} className="btn-ghost flex items-center justify-center">+ Criar vaga extra em {dm(day)}</Link>
         <form action={enviar}>{hidden({ t: ids.join(",") })}<button className="btn">{allSent ? "Reenviar escala" : filter ? "Enviar escala ao DP" : "Enviar todas as escalas ao DP"}</button></form>
         <form action={copiar}>{hidden({ t: ids.join(",") })}<button className="btn-ghost">Copiar semana anterior</button></form>
       </div>
