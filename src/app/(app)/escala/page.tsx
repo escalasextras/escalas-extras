@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { presenca } from "../extras/actions";
 import DeleteButton from "@/components/DeleteButton";
 import { getCtx, getSectors } from "@/lib/ctx";
 import { Empty, Flash, Page, SectorFilter } from "@/components/ui";
@@ -196,7 +197,7 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
     : [{ data: [] as { person_id: string; day: string; shift_id: string }[] }, { data: [] as { person_id: string; day: string; removed: boolean }[] }];
 
   const { data: extras } = await ctx.sb.from("extra_requests")
-    .select("id,work_date,shift_id,sector_id,status,person_id,people!person_id(name),positions!position_id(name)")
+    .select("id,work_date,shift_id,sector_id,status,attendance,person_id,people!person_id(name),positions!position_id(name)")
     .in("sector_id", ids).gte("work_date", days[0]).lte("work_date", days[6]);
 
   const key = (p: string, d: string) => `${p}|${d}`;
@@ -329,7 +330,8 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
                     <ul className="space-y-2">
                       {here.map((x) => <Person key={x.p.id} p={x.p} st={x.st} />)}
                       {exHere.map((e) => (
-                        <li key={e.id} className="flex items-center justify-between gap-2 rounded-xl border border-teal-200 bg-teal-50 p-3">
+                        <li key={e.id} className="rounded-xl border border-teal-200 bg-teal-50 p-3">
+                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
                             <div className="truncate font-semibold">{e.people?.name}</div>
                             <div className="muted truncate">{e.positions?.name ?? "Extra"}{filter ? "" : ` · ${sectorName.get(e.sector_id)}`}</div>
@@ -339,6 +341,15 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
                             <form action={excluirExtra}>{hidden({ id: e.id })}<DeleteButton what="este extra" /></form>
                             <span className={`badge ${e.status === "approved" ? "bg-emerald-100 text-emerald-800" : e.status === "pending" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"}`}>{({ approved: "Aprovado", pending: "Aguardando DP", rejected: "Recusado", cancelled: "Cancelado" } as Record<string, string>)[e.status]}</span>
                           </div>
+                         </div>
+                         {e.attendance ? (
+                           <p className={`mt-2 text-sm font-semibold ${e.attendance === "present" ? "text-emerald-700" : "text-red-700"}`}>{e.attendance === "present" ? "✓ Compareceu" : "✕ Faltou"}</p>
+                         ) : ["pending", "approved"].includes(e.status) && e.work_date <= today() ? (
+                           <div className="mt-2 flex gap-2">
+                             <form action={presenca} className="flex-1"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="present" value="1" /><input type="hidden" name="ret" value={retUrl(f, week, day)} /><button className="btn btn-sm">Compareceu</button></form>
+                             <form action={presenca} className="flex-1"><input type="hidden" name="id" value={e.id} /><input type="hidden" name="present" value="0" /><input type="hidden" name="suspend" value="0" /><input type="hidden" name="ret" value={retUrl(f, week, day)} /><button className="btn-ghost btn-sm">Faltou</button></form>
+                           </div>
+                         ) : null}
                         </li>
                       ))}
                     </ul>

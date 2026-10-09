@@ -20,7 +20,7 @@ export const EXTRA_SELECT =
   "requester:profiles!extra_requests_requested_by_fkey(full_name)";
 
 export default function ExtraCard({ e, ret, mode }: { e: ExtraRow; ret: string; mode: "dp" | "leader" }) {
-  const due = e.status === "approved" && !e.attendance && e.work_date <= today();
+  const due = (e.status === "approved" || e.status === "pending") && !e.attendance && e.work_date <= today();
   return (
     <li className="card space-y-3">
       <div className="flex items-start justify-between gap-2">

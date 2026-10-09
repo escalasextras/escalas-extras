@@ -34,6 +34,6 @@ export async function presenca(formData: FormData) {
     p_days: days === "x" ? null : Number(days), p_reason: String(formData.get("reason") ?? "").trim() || null,
   });
   if (error) back(ret, error.message);
-  refresh("/pendencias", "/extras", "/equipe");
+  refresh("/pendencias", "/extras", "/equipe", "/escala");
   back(ret, present ? "Presença confirmada." : suspend ? "Falta registrada e pessoa suspensa." : "Falta registrada.", "ok");
 }

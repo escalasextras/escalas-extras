@@ -23,7 +23,7 @@ export default async function Extras({ searchParams }: { searchParams: { s?: str
   else if (!ctx.isDp) q = q.in("sector_id", sectors.map((x) => x.id));
   if (f === "pending") q = q.eq("status", "pending");
   if (f === "approved") q = q.eq("status", "approved");
-  if (f === "confirmar") q = q.eq("status", "approved").is("attendance", null).lte("work_date", today());
+  if (f === "confirmar") q = q.in("status", ["pending", "approved"]).is("attendance", null).lte("work_date", today());
   const { data } = await q;
   const rows = (data ?? []) as unknown as ExtraRow[];
   const sp = sector ? `s=${sector.id}&` : "";
