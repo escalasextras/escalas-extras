@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
     days.forEach((d, i) => page.drawText(`${weekday(d)} ${dm(d)}`, { x: M + nameW + i * colW + 4, y: y - 7, size: 7.5, font: bold, color: ink }));
     y -= rowH;
   };
-  const row = (name: string, sub: string, cells: string[], extra = false) => {
+  const row = (name: string, sub: string, cells: string[], extra = false, colors: (ReturnType<typeof rgb> | null)[] = []) => {
     if (y < M + rowH) { newPage(); header(); }
     page.drawLine({ start: { x: M, y: y + 4 }, end: { x: W - M, y: y + 4 }, thickness: 0.4, color: line });
     const nm = fit(name, bold, 7.5, nameW - 8);
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
     cells.forEach((c, i) => {
       const off = c === "FOLGA", none = c === "-" || c === "";
       const f = off || extra ? bold : font;
-      page.drawText(fit(c, f, 7, colW - 6), { x: M + nameW + i * colW + 4, y: y - 6, size: 7, font: f, color: none ? grey : off ? rgb(0.7, 0.35, 0.1) : extra ? teal : ink });
+      page.drawText(fit(c, f, 7, colW - 6), { x: M + nameW + i * colW + 4, y: y - 6, size: 7, font: f, color: none ? grey : colors[i] ?? (off ? rgb(0.7, 0.35, 0.1) : extra ? teal : ink) });
     });
     y -= rowH;
   };
@@ -113,16 +113,13 @@ export async function GET(req: NextRequest) {
     }
     // extras do setor, uma linha por pessoa
     const ex = (extras ?? []).filter((e: any) => e.sector_id === sec.id) as any[];
-    const lab: Record<string, string> = { pending: "aguard. DP", approved: "aprovado", rejected: "recusado", cancelled: "cancelado" };
     const byPerson = new Map<string, any[]>();
     for (const e of ex) (byPerson.get(e.person_id) ?? byPerson.set(e.person_id, []).get(e.person_id)!).push(e);
     for (const list of byPerson.values()) {
-      const cells = days.map((d) => {
-        const e = list.find((x) => x.work_date === d);
-        const s = e ? shiftMap.get(e.shift_id) : null;
-        return e && s ? `${s.name} ${hm(s.start_time)} (${lab[e.status]})` : "";
-      });
-      row(`EXTRA: ${list[0].people?.name ?? ""}`, list[0].positions?.name ?? "", cells, true);
+      const hue: Record<string, ReturnType<typeof rgb>> = { approved: teal, pending: rgb(0.78, 0.5, 0.05), rejected: rgb(0.75, 0.15, 0.15), cancelled: rgb(0.75, 0.15, 0.15) };
+      const found = days.map((d) => list.find((x) => x.work_date === d));
+      const cells = found.map((e) => { const s = e ? shiftMap.get(e.shift_id) : null; return e && s ? `${s.name} ${hm(s.start_time)}` : ""; });
+      row(`EXTRA: ${list[0].people?.name ?? ""}`, list[0].positions?.name ?? "", cells, true, found.map((e) => (e ? hue[e.status] : null)));
     }
     if (!(people ?? []).some((x: any) => x.sector_id === sec.id) && !ex.length) {
       page.drawText("Sem equipe cadastrada neste setor.", { x: M + 4, y: y - 6, size: 8, font, color: grey }); y -= rowH;
