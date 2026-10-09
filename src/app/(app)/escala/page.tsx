@@ -162,7 +162,7 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
 
   const { data: extras } = await ctx.sb.from("extra_requests")
     .select("id,work_date,shift_id,sector_id,status,person_id,people!person_id(name),positions!position_id(name)")
-    .in("sector_id", ids).in("status", ["pending", "approved"]).gte("work_date", days[0]).lte("work_date", days[6]);
+    .in("sector_id", ids).gte("work_date", days[0]).lte("work_date", days[6]);
 
   const key = (p: string, d: string) => `${p}|${d}`;
   const offSet = new Set((offs ?? []).map((o) => key(o.person_id, o.day)));
@@ -184,7 +184,7 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
   };
   const dayCount = new Map<string, number>();
   for (const d of days) {
-    const ex = new Set((extras ?? []).filter((e: any) => e.work_date === d).map((e: any) => e.person_id));
+    const ex = new Set((extras ?? []).filter((e: any) => e.work_date === d && ["pending", "approved"].includes(e.status)).map((e: any) => e.person_id));
     dayCount.set(d, (people ?? []).filter((p) => stateOf(p, d).kind === "shift").length + ex.size);
   }
 
@@ -277,7 +277,7 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
               <section key={sh.id}>
                 <div className="mb-2 flex items-baseline justify-between gap-2">
                   <h2 className="font-display text-base font-bold">{sh.name} <span className="text-sm font-medium text-stone-500">{hm(sh.start_time)}–{hm(sh.end_time)}</span></h2>
-                  <span className="muted">{filter ? "" : `${sectorName.get(sh.sector_id)} · `}{here.length + exHere.length} presente(s)</span>
+                  <span className="muted">{filter ? "" : `${sectorName.get(sh.sector_id)} · `}{here.length + exHere.filter((e) => ["pending", "approved"].includes(e.status)).length} presente(s)</span>
                 </div>
                 <Link href={`/extras/nova?s=${sh.sector_id}&d=${day}&sh=${sh.id}`} className="mb-2 flex min-h-[44px] items-center justify-center rounded-xl border border-dashed border-teal-700 text-sm font-semibold text-teal-700 active:bg-teal-50">
                   + Criar vaga extra neste turno
@@ -295,7 +295,7 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
                           </div>
                           <div className="flex shrink-0 gap-1">
                             <span className="badge bg-teal-700 text-white">EXTRA</span>
-                            <span className={`badge ${e.status === "approved" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{e.status === "approved" ? "Aprovado" : "Aguardando DP"}</span>
+                            <span className={`badge ${e.status === "approved" ? "bg-emerald-100 text-emerald-800" : e.status === "pending" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"}`}>{({ approved: "Aprovado", pending: "Aguardando DP", rejected: "Recusado", cancelled: "Cancelado" } as Record<string, string>)[e.status]}</span>
                           </div>
                         </li>
                       ))}
