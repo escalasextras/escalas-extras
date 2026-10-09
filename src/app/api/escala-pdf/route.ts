@@ -68,9 +68,9 @@ export async function GET(req: NextRequest) {
     y = H - 50;
   };
   const header = () => {
-    const title = `${cur}  ·  ${info.total} pessoa${info.total === 1 ? "" : "s"} na escala`;
+    const title = `${cur}  ·  ${info.total}`;
     page.drawText(title, { x: M, y: y - 2, size: 10, font: bold, color: teal });
-    info.perDay.forEach((n, i) => page.drawText(`${n} pres.`, { x: M + nameW + i * colW + 4, y: y - 2, size: 7.5, font: bold, color: teal }));
+    info.perDay.forEach((n, i) => page.drawText(`${n}`, { x: M + nameW + i * colW + 4, y: y - 2, size: 7.5, font: bold, color: teal }));
     y -= 12;
     page.drawRectangle({ x: M, y: y - rowH + 4, width: W - 2 * M, height: rowH, color: rgb(0.93, 0.95, 0.94) });
     page.drawText("Nome", { x: M + 4, y: y - 7, size: 7.5, font: bold, color: ink });
