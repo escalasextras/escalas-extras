@@ -17,9 +17,15 @@ async function criar(formData: FormData) {
   const kind = String(formData.get("kind") ?? "employee");
   const position_id = String(formData.get("position_id") ?? "");
   if (!position_id) back(`/equipe/nova?s=${sector_id}`, "Escolha o cargo.");
+  let base_shift_id: string | null = String(formData.get("base_shift_id") ?? "") || null;
+  if (base_shift_id) {
+    const { data: sh } = await ctx.sb.from("shifts").select("sector_id").eq("id", base_shift_id).maybeSingle();
+    if (!sh || sh.sector_id !== sector_id) base_shift_id = null;
+  }
   const { error } = await ctx.sb.from("people").insert({
     house_id: ctx.house.id,
     sector_id,
+    base_shift_id,
     name,
     kind,
     position_id,
@@ -38,6 +44,7 @@ export default async function Nova({ searchParams }: { searchParams: { s?: strin
   if (sectors.length === 0) redirect("/equipe");
   const wanted = sectors.find((x) => x.id === searchParams.s)?.id ?? (sectors.length === 1 ? sectors[0].id : "");
   const { data: positions } = await ctx.sb.from("positions").select("id,name").eq("house_id", ctx.house.id).eq("active", true).order("name");
+  const { data: shifts } = await ctx.sb.from("shifts").select("id,name,sector_id").eq("house_id", ctx.house.id).eq("active", true).order("start_time");
   return (
     <Page title="Nova pessoa" sub="Nome, setor e cargo bastam">
       <Flash msg={searchParams.erro} />
@@ -57,6 +64,18 @@ export default async function Nova({ searchParams }: { searchParams: { s?: strin
             {(positions ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
           {(positions ?? []).length === 0 && <p className="mt-1 text-sm text-stone-500">Nenhum cargo cadastrado ainda. Cadastre em Config → Cargos.</p>}
+        </div>
+        <div>
+          <label className="label">Turno base (opcional)</label>
+          <select name="base_shift_id" className="input" defaultValue="">
+            <option value="">Sem turno base</option>
+            {sectors.map((x) => (
+              <optgroup key={x.id} label={x.name}>
+                {(shifts ?? []).filter((sh) => sh.sector_id === x.id).map((sh) => <option key={sh.id} value={sh.id}>{sh.name}</option>)}
+              </optgroup>
+            ))}
+          </select>
+          <p className="mt-1 text-sm text-stone-500">Na escala, a pessoa já aparece presente nesse turno. Precisa ser um turno do setor escolhido.</p>
         </div>
         <details className="rounded-xl border border-stone-200 bg-white p-3">
           <summary className="cursor-pointer text-sm font-medium text-stone-600">Mais dados (opcional)</summary>

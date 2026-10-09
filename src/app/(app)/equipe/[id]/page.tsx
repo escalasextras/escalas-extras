@@ -13,7 +13,14 @@ async function salvar(formData: FormData) {
   const id = String(formData.get("id"));
   const cpf = onlyDigits(String(formData.get("cpf") ?? ""));
   if (cpf && cpf.length !== 11) back(`/equipe/${id}`, "CPF deve ter 11 números.");
+  const sectorWanted = String(formData.get("sector_id") ?? "");
+  let base_shift_id: string | null = String(formData.get("base_shift_id") ?? "") || null;
+  if (base_shift_id) {
+    const { data: sh } = await ctx.sb.from("shifts").select("sector_id").eq("id", base_shift_id).maybeSingle();
+    if (!sh || (sectorWanted && sh.sector_id !== sectorWanted)) base_shift_id = null;
+  }
   const patch: Record<string, unknown> = {
+    base_shift_id,
     name: String(formData.get("name") ?? "").trim(),
     position_id: String(formData.get("position_id") ?? "") || null,
     ...(formData.get("sector_id") ? { sector_id: String(formData.get("sector_id")) } : {}),
@@ -103,6 +110,7 @@ export default async function Pessoa({ params, searchParams }: { params: { id: s
     ctx.sb.from("extra_requests").select("id", { count: "exact", head: true }).eq("person_id", p.id).eq("attendance", "absent"),
   ]);
   const sectorList = await getSectors(ctx);
+  const { data: shifts } = await ctx.sb.from("shifts").select("id,name,sector_id").eq("house_id", ctx.house.id).eq("active", true).order("start_time");
   const on = new Set((enabled ?? []).map((e) => e.position_id));
   const t = today();
   const ativa = (susps ?? []).find((s) => !s.lifted_at && s.starts_on <= t && (!s.ends_on || s.ends_on >= t));
@@ -139,6 +147,18 @@ export default async function Pessoa({ params, searchParams }: { params: { id: s
             <option value="">Sem cargo</option>
             {(positions ?? []).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
           </select>
+        </div>
+        <div>
+          <label className="label">Turno base</label>
+          <select name="base_shift_id" className="input" defaultValue={(p as any).base_shift_id ?? ""}>
+            <option value="">Sem turno base</option>
+            {sectorList.map((x) => (
+              <optgroup key={x.id} label={x.name}>
+                {(shifts ?? []).filter((sh) => sh.sector_id === x.id).map((sh) => <option key={sh.id} value={sh.id}>{sh.name}</option>)}
+              </optgroup>
+            ))}
+          </select>
+          <p className="mt-1 text-sm text-stone-500">Precisa ser do setor escolhido; senão é ignorado.</p>
         </div>
         {ctx.isDp
           ? <div><label className="label">CPF</label><input name="cpf" className="input" inputMode="numeric" defaultValue={fmtCpf(p.cpf)} /></div>
