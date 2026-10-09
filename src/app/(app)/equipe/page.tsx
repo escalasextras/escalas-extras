@@ -13,15 +13,15 @@ export default async function Equipe({ searchParams }: { searchParams: { s?: str
   const inactive = searchParams.ver === "inativos";
   const today = new Date().toISOString().slice(0, 10);
 
-  const [{ data: people }, { data: susp }] = await Promise.all([
-    ctx.sb.from("people").select("id,name,kind,cpf,active,positions(name)").eq("sector_id", sector.id).eq("active", !inactive).order("name"),
+  const [{ data: people, error: errPeople }, { data: susp }] = await Promise.all([
+    ctx.sb.from("people").select("id,name,kind,cpf,active,positions!position_id(name)").eq("sector_id", sector.id).eq("active", !inactive).order("name"),
     ctx.sb.from("suspensions").select("person_id,ends_on").eq("house_id", ctx.house.id).is("lifted_at", null).lte("starts_on", today),
   ]);
   const suspended = new Set((susp ?? []).filter((s) => !s.ends_on || s.ends_on >= today).map((s) => s.person_id));
 
   return (
     <Page title="Equipe" sub={sector.name} action={<Link href={`/equipe/nova?s=${sector.id}`} className="chip chip-on">+ Pessoa</Link>}>
-      <Flash msg={searchParams.ok} tone="ok" /><Flash msg={searchParams.erro} />
+      <Flash msg={searchParams.ok} tone="ok" /><Flash msg={searchParams.erro ?? (errPeople ? `Não foi possível carregar a equipe: ${errPeople.message}` : undefined)} />
       <SectorPicker sectors={sectors} current={sector.id} base="/equipe" />
       <div className="flex gap-2">
         <Link href={`/equipe?s=${sector.id}`} className={`chip ${!inactive ? "chip-on" : ""}`}>Ativos</Link>

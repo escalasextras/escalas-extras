@@ -98,7 +98,7 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
 
   const [{ data: shifts }, { data: people }, { data: sch }] = await Promise.all([
     ctx.sb.from("shifts").select("id,name,start_time,end_time").eq("sector_id", sector.id).eq("active", true).order("start_time"),
-    ctx.sb.from("people").select("id,name,positions(name)").eq("sector_id", sector.id).eq("active", true).eq("kind", "employee").order("name"),
+    ctx.sb.from("people").select("id,name,positions!position_id(name)").eq("sector_id", sector.id).eq("active", true).eq("kind", "employee").order("name"),
     ctx.sb.from("schedules").select("id,status").eq("sector_id", sector.id).eq("week_start", week).maybeSingle(),
   ]);
   const { data: entries } = sch
