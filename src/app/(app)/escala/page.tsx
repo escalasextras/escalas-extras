@@ -130,18 +130,18 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
       <Flash msg={searchParams.ok} tone="ok" />
 
       <div className="flex items-center justify-between">
-        <Link href={`${base}&w=${addDays(week, -7)}`} className="chip">◀</Link>
+        <Link href={`${base}&w=${addDays(week, -7)}`} className="chip" aria-label="Semana anterior">‹ Anterior</Link>
         <span className="text-sm font-semibold">{dm(week)} a {dm(addDays(week, 6))}</span>
-        <Link href={`${base}&w=${addDays(week, 7)}`} className="chip">▶</Link>
+        <Link href={`${base}&w=${addDays(week, 7)}`} className="chip" aria-label="Próxima semana">Próxima ›</Link>
       </div>
 
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {days.map((d) => (
           <Link key={d} href={`${base}&w=${week}&d=${d}`}
             className={`flex min-h-[64px] min-w-[52px] shrink-0 flex-col items-center justify-center rounded-xl border text-sm ${d === day ? "border-teal-700 bg-teal-700 text-white" : "border-stone-300 bg-white"}`}>
-            <span className="text-xs uppercase opacity-80">{weekday(d)}</span>
-            <span className="text-base font-bold">{d.slice(8)}</span>
-            <span className="text-[11px] opacity-80">{dayCount.get(d)?.size ?? 0} 👤</span>
+            <span className="text-xs font-medium opacity-80">{weekday(d)}</span>
+            <span className="font-display text-lg font-bold leading-none">{d.slice(8)}</span>
+            <span className="mt-0.5 rounded-full bg-black/10 px-1.5 text-[11px] font-bold">{dayCount.get(d)?.size ?? 0}</span>
           </Link>
         ))}
       </div>
@@ -178,7 +178,7 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
                     <form action={folga}>{hidden({ person: p.id })}<button className="chip text-stone-500">Folga</button></form>
                   )}
                 </div>
-                {clash && <p className="mt-2 text-sm font-medium text-red-700">⚠ Turnos sobrepostos neste dia</p>}
+                {clash && <p className="mt-2 text-sm font-medium text-red-700">Atenção: turnos sobrepostos neste dia</p>}
               </li>
             );
           })}

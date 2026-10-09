@@ -24,7 +24,7 @@ export default async function Casas() {
   return (
     <main className="mx-auto max-w-md px-5 py-8">
       <p className="muted">Olá, {profile.full_name.split(" ")[0]}</p>
-      <h1 className="h1 mb-5 mt-1">Escolha a casa</h1>
+      <h1 className="h1 mb-6 mt-1 text-3xl">Escolha a casa</h1>
       {list.length === 0 && (
         <p className="card muted">Você ainda não tem acesso a nenhuma casa. Fale com o Admin.</p>
       )}
@@ -32,12 +32,12 @@ export default async function Casas() {
         {list.map((h) => (
           <form key={h.id} action={escolher}>
             <input type="hidden" name="id" value={h.id} />
-            <button className="card flex w-full min-h-[64px] items-center justify-between text-left active:bg-stone-100">
+            <button className="card flex w-full min-h-[72px] items-center justify-between text-left transition-colors active:bg-stone-100">
               <span>
-                <span className="block text-base font-semibold">{h.name}</span>
+                <span className="block font-display text-lg font-bold">{h.name}</span>
                 {h.company && <span className="muted">{h.company}</span>}
               </span>
-              <span className="text-stone-400">›</span>
+              <span className="grid h-8 w-8 place-items-center rounded-full bg-stone-100 text-stone-500" aria-hidden="true">›</span>
             </button>
           </form>
         ))}

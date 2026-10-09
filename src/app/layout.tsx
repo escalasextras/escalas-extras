@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import "@fontsource-variable/bricolage-grotesque";
+import "@fontsource-variable/figtree";
 import "./globals.css";
+
 
 export const metadata: Metadata = {
   title: "Escalas e Extras",
@@ -13,7 +16,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#0f766e",
+  themeColor: "#15211C",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
