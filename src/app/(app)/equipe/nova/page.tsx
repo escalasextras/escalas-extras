@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCtx, getSectors, pickSector } from "@/lib/ctx";
+import { getCtx, getSectors } from "@/lib/ctx";
 import { Flash, Page } from "@/components/ui";
 import { back, refresh } from "@/lib/act";
 import SubmitButton from "@/components/SubmitButton";
@@ -8,9 +8,10 @@ import { onlyDigits } from "@/lib/util";
 async function criar(formData: FormData) {
   "use server";
   const ctx = await getCtx();
-  const sector_id = String(formData.get("sector_id"));
+  const sector_id = String(formData.get("sector_id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   if (!name) back(`/equipe/nova?s=${sector_id}`, "Informe o nome.");
+  if (!sector_id) back("/equipe/nova", "Escolha o setor.");
   const cpf = onlyDigits(String(formData.get("cpf") ?? ""));
   if (cpf && cpf.length !== 11) back(`/equipe/nova?s=${sector_id}`, "CPF deve ter 11 números.");
   const kind = String(formData.get("kind") ?? "employee");
@@ -28,21 +29,27 @@ async function criar(formData: FormData) {
   });
   if (error) back(`/equipe/nova?s=${sector_id}`, error.message);
   refresh("/equipe");
-  back(`/equipe?s=${sector_id}`, `${name} salvo(a).`, "ok");
+  back("/equipe", `${name} salvo(a).`, "ok");
 }
 
 export default async function Nova({ searchParams }: { searchParams: { s?: string; erro?: string } }) {
   const ctx = await getCtx();
   const sectors = await getSectors(ctx);
-  const sector = pickSector(sectors, searchParams.s);
-  if (!sector) redirect("/equipe");
+  if (sectors.length === 0) redirect("/equipe");
+  const wanted = sectors.find((x) => x.id === searchParams.s)?.id ?? (sectors.length === 1 ? sectors[0].id : "");
   const { data: positions } = await ctx.sb.from("positions").select("id,name").eq("house_id", ctx.house.id).eq("active", true).order("name");
   return (
-    <Page title="Nova pessoa" sub={sector.name}>
+    <Page title="Nova pessoa" sub="Nome, setor e cargo bastam">
       <Flash msg={searchParams.erro} />
       <form action={criar} className="space-y-4">
-        <input type="hidden" name="sector_id" value={sector.id} />
         <div><label className="label">Nome</label><input name="name" className="input" required autoComplete="off" /></div>
+        <div>
+          <label className="label">Setor</label>
+          <select name="sector_id" className="input" defaultValue={wanted} required>
+            <option value="" disabled>Escolha o setor</option>
+            {sectors.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+          </select>
+        </div>
         <div>
           <label className="label">Cargo</label>
           <select name="position_id" className="input" defaultValue="" required>

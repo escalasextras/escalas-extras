@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCtx } from "@/lib/ctx";
+import { getCtx, getSectors } from "@/lib/ctx";
 import { Flash, Page } from "@/components/ui";
 import { back, refresh, delErr } from "@/lib/act";
 import { redirect } from "next/navigation";
@@ -16,6 +16,7 @@ async function salvar(formData: FormData) {
   const patch: Record<string, unknown> = {
     name: String(formData.get("name") ?? "").trim(),
     position_id: String(formData.get("position_id") ?? "") || null,
+    ...(formData.get("sector_id") ? { sector_id: String(formData.get("sector_id")) } : {}),
     phone: String(formData.get("phone") ?? "").trim() || null,
     pix: String(formData.get("pix") ?? "").trim() || null,
   };
@@ -85,11 +86,10 @@ async function excluir(formData: FormData) {
   const ctx = await getCtx();
   if (!ctx.isDp) back("/equipe", "Só Gestor ou DP exclui pessoas.");
   const id = String(formData.get("id"));
-  const sid = String(formData.get("sid") ?? "");
   const { error } = await ctx.sb.from("people").delete().eq("id", id);
   if (error) back(`/equipe/${id}`, delErr(error).replace("Use Desativar", "Use Inativar pessoa"));
   refresh("/equipe");
-  redirect(`/equipe?s=${sid}`);
+  redirect("/equipe");
 }
 
 export default async function Pessoa({ params, searchParams }: { params: { id: string }; searchParams: { erro?: string; ok?: string } }) {
@@ -102,13 +102,14 @@ export default async function Pessoa({ params, searchParams }: { params: { id: s
     ctx.sb.from("suspensions").select("*").eq("person_id", p.id).order("created_at", { ascending: false }),
     ctx.sb.from("extra_requests").select("id", { count: "exact", head: true }).eq("person_id", p.id).eq("attendance", "absent"),
   ]);
+  const sectorList = await getSectors(ctx);
   const on = new Set((enabled ?? []).map((e) => e.position_id));
   const t = today();
   const ativa = (susps ?? []).find((s) => !s.lifted_at && s.starts_on <= t && (!s.ends_on || s.ends_on >= t));
 
   return (
     <Page title={p.name} sub={`${(p as any).sectors?.name} · ${p.active ? "Ativo" : "Inativo"}`}
-      action={<Link href={`/equipe?s=${p.sector_id}`} className="chip">Voltar</Link>}>
+      action={<Link href="/equipe" className="chip">Voltar</Link>}>
       <Flash msg={searchParams.erro} />
       <Flash msg={searchParams.ok} tone="ok" />
 
@@ -126,6 +127,12 @@ export default async function Pessoa({ params, searchParams }: { params: { id: s
       <form action={salvar} className="card space-y-3">
         <input type="hidden" name="id" value={p.id} />
         <div><label className="label">Nome</label><input name="name" className="input" defaultValue={p.name} required /></div>
+        <div>
+          <label className="label">Setor</label>
+          <select name="sector_id" className="input" defaultValue={p.sector_id}>
+            {sectorList.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+          </select>
+        </div>
         <div>
           <label className="label">Cargo</label>
           <select name="position_id" className="input" defaultValue={p.position_id ?? ""}>
