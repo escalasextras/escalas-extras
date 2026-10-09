@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCtx, getSectors } from "@/lib/ctx";
 import { Empty, Flash, Page } from "@/components/ui";
 import { back, refresh } from "@/lib/act";
+import { busyPeople } from "@/lib/busy";
 import SubmitButton from "@/components/SubmitButton";
 import { brl, dm, hm, today, weekday } from "@/lib/util";
 
@@ -20,6 +21,13 @@ async function criar(formData: FormData) {
   const ctx = await getCtx();
   const g = (k: string) => String(formData.get(k) ?? "");
   const retq = ["s", "d", "sh", "pos", "rs", "ab", "p"].map((k) => `${k}=${encodeURIComponent(g(k))}`).join("&");
+  {
+    const { data: sh } = await ctx.sb.from("shifts").select("start_time,end_time").eq("id", g("sh")).single();
+    if (sh) {
+      const busy = await busyPeople(ctx.sb, g("d"), sh, [g("p")]);
+      if (busy.has(g("p"))) back(`/extras/nova?${retq}`, `Esta pessoa já está escalada no turno ${busy.get(g("p"))} neste dia. Não pode ser extra.`);
+    }
+  }
   const { error } = await ctx.sb.from("extra_requests").insert({
     house_id: ctx.house.id, sector_id: g("s"), shift_id: g("sh"), position_id: g("pos"), work_date: g("d"),
     reason_id: g("rs"), absent_person_id: g("ab") || null, person_id: g("p"), note: g("note").trim() || null,
@@ -119,6 +127,7 @@ export default async function Nova({ searchParams }: { searchParams: SP }) {
   // elegíveis
   const eligible: { id: string; name: string }[] = [];
   let hiddenSusp = 0;
+  let hiddenBusy = 0;
   if (step === 5 && position && date && reason) {
     const [{ data: en }, { data: susp }] = await Promise.all([
       ctx.sb.from("person_enablements").select("person_id").eq("position_id", position.id),
@@ -133,6 +142,11 @@ export default async function Nova({ searchParams }: { searchParams: SP }) {
       if (suspended.has(p.id)) { hiddenSusp++; continue; }
       eligible.push({ id: p.id, name: p.name });
     }
+  }
+
+  if (eligible.length && shift && date) {
+    const busy = await busyPeople(ctx.sb, date, shift, eligible.map((x) => x.id));
+    for (let i = eligible.length - 1; i >= 0; i--) if (busy.has(eligible[i].id)) { eligible.splice(i, 1); hiddenBusy++; }
   }
 
   return (
@@ -229,6 +243,7 @@ export default async function Nova({ searchParams }: { searchParams: SP }) {
               <SubmitButton>Cadastrar e usar nesta vaga</SubmitButton>
             </form>
           </details>
+          {hiddenBusy > 0 && <p className="muted">{hiddenBusy} pessoa(s) já escalada(s) neste horário não aparecem.</p>}
           {hiddenSusp > 0 && <p className="muted">{hiddenSusp} pessoa(s) suspensa(s) não aparecem.</p>}
         </div>
       )}
