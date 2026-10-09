@@ -1,7 +1,8 @@
 import Link from "next/link";
+import DeleteButton from "@/components/DeleteButton";
 import { getCtx, getSectors } from "@/lib/ctx";
 import { Empty, Flash, Page, SectorFilter } from "@/components/ui";
-import { back, refresh } from "@/lib/act";
+import { back, refresh, delErr } from "@/lib/act";
 import { addDays, dm, hm, mondayOf, today, weekday } from "@/lib/util";
 
 async function ensureSchedule(ctx: Awaited<ReturnType<typeof getCtx>>, sector_id: string, week: string) {
@@ -31,8 +32,8 @@ async function folga(formData: FormData) {
     const person_id = String(formData.get("person"));
     await ctx.sb.from("schedule_entries").delete().eq("schedule_id", sch.id).eq("person_id", person_id).eq("day", d);
     const { error } = await ctx.sb.from("schedule_offs").upsert(
-      { house_id: ctx.house.id, schedule_id: sch.id, person_id, day: d },
-      { onConflict: "schedule_id,person_id,day", ignoreDuplicates: true }
+      { house_id: ctx.house.id, schedule_id: sch.id, person_id, day: d, removed: false },
+      { onConflict: "schedule_id,person_id,day" }
     );
     if (error) throw new Error(error.message);
     await touch(ctx, sch);
@@ -41,6 +42,40 @@ async function folga(formData: FormData) {
   }
   refresh("/escala");
   back(ret);
+}
+
+// Excluir da escala do dia (some da lista; dá para desfazer em "Excluídos do dia")
+async function excluirDia(formData: FormData) {
+  "use server";
+  const ctx = await getCtx();
+  const s = String(formData.get("s")), w = String(formData.get("w")), d = String(formData.get("d")), f = String(formData.get("f") ?? "");
+  const ret = retUrl(f, w, d);
+  try {
+    const sch = await ensureSchedule(ctx, s, w);
+    const person_id = String(formData.get("person"));
+    await ctx.sb.from("schedule_entries").delete().eq("schedule_id", sch.id).eq("person_id", person_id).eq("day", d);
+    const { error } = await ctx.sb.from("schedule_offs").upsert(
+      { house_id: ctx.house.id, schedule_id: sch.id, person_id, day: d, removed: true },
+      { onConflict: "schedule_id,person_id,day" }
+    );
+    if (error) throw new Error(error.message);
+    await touch(ctx, sch);
+  } catch (e: any) {
+    back(ret, e.message);
+  }
+  refresh("/escala");
+  back(ret);
+}
+
+async function excluirExtra(formData: FormData) {
+  "use server";
+  const ctx = await getCtx();
+  const w = String(formData.get("w")), d = String(formData.get("d")), f = String(formData.get("f") ?? "");
+  const { data, error } = await ctx.sb.from("extra_requests").delete().eq("id", String(formData.get("id"))).select("id");
+  if (error) back(retUrl(f, w, d), delErr(error));
+  if (!data?.length) back(retUrl(f, w, d), "Sem permissão para excluir este extra (só vagas pendentes, ou Gestor/DP).");
+  refresh("/escala", "/extras", "/pendencias");
+  back(retUrl(f, w, d), "Extra excluído.", "ok");
 }
 
 // Volta ao turno base: tira a folga e qualquer troca do dia
@@ -95,13 +130,13 @@ async function copiar(formData: FormData) {
     if (!ps) continue;
     const { data: old } = await ctx.sb.from("schedule_entries").select("person_id,day,shift_id,people!inner(active),shifts!inner(active)").eq("schedule_id", ps.id);
     const rows = (old ?? []).filter((r: any) => r.people.active && r.shifts.active);
-    const { data: offs } = await ctx.sb.from("schedule_offs").select("person_id,day,people!inner(active)").eq("schedule_id", ps.id);
+    const { data: offs } = await ctx.sb.from("schedule_offs").select("person_id,day,removed,people!inner(active)").eq("schedule_id", ps.id);
     const offRows = (offs ?? []).filter((r: any) => r.people.active);
     if (!rows.length && !offRows.length) continue;
     const sch = await ensureSchedule(ctx, s, w);
     if (offRows.length) {
       const { error: e2 } = await ctx.sb.from("schedule_offs").upsert(
-        offRows.map((r: any) => ({ house_id: ctx.house.id, schedule_id: sch.id, person_id: r.person_id, day: addDays(r.day, 7) })),
+        offRows.map((r: any) => ({ house_id: ctx.house.id, schedule_id: sch.id, person_id: r.person_id, day: addDays(r.day, 7), removed: r.removed })),
         { onConflict: "schedule_id,person_id,day", ignoreDuplicates: true }
       );
       if (e2) back(ret, e2.message);
@@ -156,16 +191,17 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
   const [{ data: entries }, { data: offs }] = schIds.length
     ? await Promise.all([
         ctx.sb.from("schedule_entries").select("person_id,day,shift_id").in("schedule_id", schIds),
-        ctx.sb.from("schedule_offs").select("person_id,day").in("schedule_id", schIds),
+        ctx.sb.from("schedule_offs").select("person_id,day,removed").in("schedule_id", schIds),
       ])
-    : [{ data: [] as { person_id: string; day: string; shift_id: string }[] }, { data: [] as { person_id: string; day: string }[] }];
+    : [{ data: [] as { person_id: string; day: string; shift_id: string }[] }, { data: [] as { person_id: string; day: string; removed: boolean }[] }];
 
   const { data: extras } = await ctx.sb.from("extra_requests")
     .select("id,work_date,shift_id,sector_id,status,person_id,people!person_id(name),positions!position_id(name)")
     .in("sector_id", ids).gte("work_date", days[0]).lte("work_date", days[6]);
 
   const key = (p: string, d: string) => `${p}|${d}`;
-  const offSet = new Set((offs ?? []).map((o) => key(o.person_id, o.day)));
+  const offSet = new Set((offs ?? []).filter((o) => !o.removed).map((o) => key(o.person_id, o.day)));
+  const removedSet = new Set((offs ?? []).filter((o) => o.removed).map((o) => key(o.person_id, o.day)));
   const overrideOf = new Map<string, string>();
   for (const e of entries ?? []) overrideOf.set(key(e.person_id, e.day), e.shift_id);
   const shiftMap = new Map((shifts ?? []).map((s) => [s.id, s]));
@@ -173,9 +209,10 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
   const sectorName = new Map(sectors.map((x) => [x.id, x.name]));
 
   // turno efetivo da pessoa no dia: folga > troca do dia > turno base
-  type St = { kind: "off" } | { kind: "shift"; shift_id: string; swapped: boolean } | { kind: "none" };
+  type St = { kind: "removed" } | { kind: "off" } | { kind: "shift"; shift_id: string; swapped: boolean } | { kind: "none" };
   const stateOf = (p: any, d: string): St => {
     const k = key(p.id, d);
+    if (removedSet.has(k)) return { kind: "removed" };
     if (offSet.has(k)) return { kind: "off" };
     const o = overrideOf.get(k);
     if (o && shiftMap.has(o)) return { kind: "shift", shift_id: o, swapped: o !== p.base_shift_id };
@@ -200,6 +237,7 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
 
   const states = (people ?? []).map((p: any) => ({ p, st: stateOf(p, day) }));
   const offList = states.filter((x) => x.st.kind === "off");
+  const removedList = states.filter((x) => x.st.kind === "removed");
   const noneList = states.filter((x) => x.st.kind === "none");
 
   const Person = ({ p, st }: { p: any; st: St }) => {
@@ -216,8 +254,11 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
             {st.kind === "shift" && (
               <form action={folga}>{hidden({ s: p.sector_id, person: p.id })}<button className="chip">Folga</button></form>
             )}
-            {st.kind !== "shift" && st.kind === "off" && (
-              <form action={voltar}>{hidden({ s: p.sector_id, person: p.id })}<button className="chip">Voltar ao turno</button></form>
+            {(st.kind === "off" || st.kind === "removed") && (
+              <form action={voltar}>{hidden({ s: p.sector_id, person: p.id })}<button className="chip">{st.kind === "removed" ? "Desfazer" : "Voltar ao turno"}</button></form>
+            )}
+            {st.kind !== "removed" && (
+              <form action={excluirDia}>{hidden({ s: p.sector_id, person: p.id })}<DeleteButton what="esta pessoa da escala do dia" /></form>
             )}
           </div>
         </div>
@@ -295,6 +336,7 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
                           </div>
                           <div className="flex shrink-0 gap-1">
                             <span className="badge bg-teal-700 text-white">EXTRA</span>
+                            <form action={excluirExtra}>{hidden({ id: e.id })}<DeleteButton what="este extra" /></form>
                             <span className={`badge ${e.status === "approved" ? "bg-emerald-100 text-emerald-800" : e.status === "pending" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"}`}>{({ approved: "Aprovado", pending: "Aguardando DP", rejected: "Recusado", cancelled: "Cancelado" } as Record<string, string>)[e.status]}</span>
                           </div>
                         </li>
@@ -310,6 +352,13 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
               <h2 className="mb-2 font-display text-base font-bold">Sem turno <span className="text-sm font-medium text-stone-500">({noneList.length})</span></h2>
               <ul className="space-y-2">{noneList.map((x) => <Person key={x.p.id} p={x.p} st={x.st} />)}</ul>
             </section>
+          )}
+
+          {removedList.length > 0 && (
+            <details>
+              <summary className="cursor-pointer text-sm font-medium text-stone-500">Excluídos do dia ({removedList.length})</summary>
+              <ul className="mt-2 space-y-2">{removedList.map((x) => <Person key={x.p.id} p={x.p} st={x.st} />)}</ul>
+            </details>
           )}
 
           {offList.length > 0 && (
