@@ -26,7 +26,7 @@ async function criar(formData: FormData) {
     amount: 0, // o banco define o valor pela tabela da casa
   });
   if (error) back(`/extras/nova?${retq}`, error.message);
-  refresh("/extras", "/pendencias");
+  refresh("/extras", "/pendencias", "/escala");
   back(`/extras?s=${g("s")}&f=pending`, "Vaga enviada ao DP.", "ok");
 }
 

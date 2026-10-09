@@ -160,6 +160,10 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
       ])
     : [{ data: [] as { person_id: string; day: string; shift_id: string }[] }, { data: [] as { person_id: string; day: string }[] }];
 
+  const { data: extras } = await ctx.sb.from("extra_requests")
+    .select("id,work_date,shift_id,sector_id,status,person_id,people!person_id(name),positions!position_id(name)")
+    .in("sector_id", ids).in("status", ["pending", "approved"]).gte("work_date", days[0]).lte("work_date", days[6]);
+
   const key = (p: string, d: string) => `${p}|${d}`;
   const offSet = new Set((offs ?? []).map((o) => key(o.person_id, o.day)));
   const overrideOf = new Map<string, string>();
@@ -179,7 +183,10 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
     return { kind: "none" };
   };
   const dayCount = new Map<string, number>();
-  for (const d of days) dayCount.set(d, (people ?? []).filter((p) => stateOf(p, d).kind === "shift").length);
+  for (const d of days) {
+    const ex = new Set((extras ?? []).filter((e: any) => e.work_date === d).map((e: any) => e.person_id));
+    dayCount.set(d, (people ?? []).filter((p) => stateOf(p, d).kind === "shift").length + ex.size);
+  }
 
   const base = `/escala?${f ? `s=${f}&` : ""}`;
   const hidden = (extra: Record<string, string> = {}) => (
@@ -265,18 +272,35 @@ export default async function Escala({ searchParams }: { searchParams: { s?: str
         <div className="space-y-5">
           {(shifts ?? []).map((sh) => {
             const here = states.filter((x) => x.st.kind === "shift" && x.st.shift_id === sh.id);
+            const exHere = (extras ?? []).filter((e: any) => e.work_date === day && e.shift_id === sh.id) as any[];
             return (
               <section key={sh.id}>
                 <div className="mb-2 flex items-baseline justify-between gap-2">
                   <h2 className="font-display text-base font-bold">{sh.name} <span className="text-sm font-medium text-stone-500">{hm(sh.start_time)}–{hm(sh.end_time)}</span></h2>
-                  <span className="muted">{filter ? "" : `${sectorName.get(sh.sector_id)} · `}{here.length} presente(s)</span>
+                  <span className="muted">{filter ? "" : `${sectorName.get(sh.sector_id)} · `}{here.length + exHere.length} presente(s)</span>
                 </div>
                 <Link href={`/extras/nova?s=${sh.sector_id}&d=${day}&sh=${sh.id}`} className="mb-2 flex min-h-[44px] items-center justify-center rounded-xl border border-dashed border-teal-700 text-sm font-semibold text-teal-700 active:bg-teal-50">
                   + Criar vaga extra neste turno
                 </Link>
-                {here.length === 0
+                {here.length === 0 && exHere.length === 0
                   ? <p className="muted rounded-xl border border-dashed border-stone-300 p-3">Ninguém neste turno. Vincule o turno base na ficha da pessoa (Equipe) ou use “Escalar em um turno hoje”.</p>
-                  : <ul className="space-y-2">{here.map((x) => <Person key={x.p.id} p={x.p} st={x.st} />)}</ul>}
+                  : (
+                    <ul className="space-y-2">
+                      {here.map((x) => <Person key={x.p.id} p={x.p} st={x.st} />)}
+                      {exHere.map((e) => (
+                        <li key={e.id} className="flex items-center justify-between gap-2 rounded-xl border border-teal-200 bg-teal-50 p-3">
+                          <div className="min-w-0">
+                            <div className="truncate font-semibold">{e.people?.name}</div>
+                            <div className="muted truncate">{e.positions?.name ?? "Extra"}{filter ? "" : ` · ${sectorName.get(e.sector_id)}`}</div>
+                          </div>
+                          <div className="flex shrink-0 gap-1">
+                            <span className="badge bg-teal-700 text-white">EXTRA</span>
+                            <span className={`badge ${e.status === "approved" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{e.status === "approved" ? "Aprovado" : "Aguardando DP"}</span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
               </section>
             );
           })}
