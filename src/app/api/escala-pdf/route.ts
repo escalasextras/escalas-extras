@@ -68,7 +68,9 @@ export async function GET(req: NextRequest) {
     y = H - 50;
   };
   const header = () => {
-    page.drawText(cur, { x: M, y: y - 2, size: 10, font: bold, color: teal });
+    const title = `${cur}  ·  ${info.total} pessoa${info.total === 1 ? "" : "s"} na escala`;
+    page.drawText(title, { x: M, y: y - 2, size: 10, font: bold, color: teal });
+    info.perDay.forEach((n, i) => page.drawText(`${n} pres.`, { x: M + nameW + i * colW + 4, y: y - 2, size: 7.5, font: bold, color: teal }));
     y -= 12;
     page.drawRectangle({ x: M, y: y - rowH + 4, width: W - 2 * M, height: rowH, color: rgb(0.93, 0.95, 0.94) });
     page.drawText("Nome", { x: M + 4, y: y - 7, size: 7.5, font: bold, color: ink });
@@ -92,9 +94,17 @@ export async function GET(req: NextRequest) {
     y -= rowH;
   };
   let cur = "";
+  let info = { total: 0, perDay: [] as number[] };
 
   for (const sec of shown) {
     cur = sec.name;
+    const team = (people ?? []).filter((x: any) => x.sector_id === sec.id) as any[];
+    const exSec = (extras ?? []).filter((e: any) => e.sector_id === sec.id && ["pending", "approved"].includes(e.status)) as any[];
+    const perDay = days.map((d) => team.filter((p) => { const c = cell(p, d); return c !== "-" && c !== "FOLGA"; }).length + new Set(exSec.filter((e) => e.work_date === d).map((e) => e.person_id)).size);
+    const everyone = new Set<string>();
+    team.forEach((p) => { if (days.some((d) => { const c = cell(p, d); return c !== "-" && c !== "FOLGA"; })) everyone.add(p.id); });
+    exSec.forEach((e) => everyone.add(e.person_id));
+    info = { total: everyone.size, perDay };
     const need = rowH * 4 + 24;
     if (!page || y < M + need) newPage(); else y -= 10;
     header();
