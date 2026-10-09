@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCtx, getSectors } from "@/lib/ctx";
 import { Empty, Flash, Page } from "@/components/ui";
 import { back, refresh } from "@/lib/act";
+import SubmitButton from "@/components/SubmitButton";
 import { brl, dm, hm, today, weekday } from "@/lib/util";
 
 type SP = { s?: string; d?: string; sh?: string; pos?: string; rs?: string; ab?: string; p?: string; erro?: string };
@@ -27,6 +28,24 @@ async function criar(formData: FormData) {
   if (error) back(`/extras/nova?${retq}`, error.message);
   refresh("/extras", "/pendencias");
   back(`/extras?s=${g("s")}&f=pending`, "Vaga enviada ao DP.", "ok");
+}
+
+// cadastra um extra (freelancer) na hora e já seleciona para a vaga
+async function cadastrar(formData: FormData) {
+  "use server";
+  const ctx = await getCtx();
+  const g = (k: string) => String(formData.get(k) ?? "");
+  const q = (extra: string) => ["s", "d", "sh", "pos", "rs", "ab"].map((k) => `${k}=${encodeURIComponent(g(k))}`).join("&") + extra;
+  const name = g("name").trim();
+  if (!name) back(`/extras/nova?${q("")}`, "Informe o nome.");
+  const { data, error } = await ctx.sb.from("people").insert({
+    house_id: ctx.house.id, sector_id: g("s"), position_id: g("pos"), name,
+    kind: g("test") === "1" ? "candidate" : "freelancer",
+    phone: g("phone").trim() || null, pix: g("pix").trim() || null,
+  }).select("id").single();
+  if (error) back(`/extras/nova?${q("")}`, error.message);
+  refresh("/equipe");
+  back(`/extras/nova?${q(`&p=${data!.id}`)}`);
 }
 
 export default async function Nova({ searchParams }: { searchParams: SP }) {
@@ -198,6 +217,18 @@ export default async function Nova({ searchParams }: { searchParams: SP }) {
               Ninguém elegível para {position?.name}. {reason?.is_test ? "Cadastre o candidato na aba Equipe." : "Habilite pessoas para este cargo no cadastro delas."}
             </Empty>
           )}
+          <details className="card" open={eligible.length === 0}>
+            <summary className="min-h-[44px] cursor-pointer font-semibold leading-[44px] text-teal-700">+ Cadastrar {reason?.is_test ? "candidato" : "novo extra"}</summary>
+            <form action={cadastrar} className="mt-2 space-y-3">
+              {["s", "d", "sh", "pos", "rs", "ab"].map((k) => <input key={k} type="hidden" name={k} value={(sp as any)[k] ?? ""} />)}
+              <input type="hidden" name="test" value={reason?.is_test ? "1" : "0"} />
+              <div><label className="label">Nome</label><input name="name" className="input" required autoComplete="off" /></div>
+              <div><label className="label">Telefone (opcional)</label><input name="phone" className="input" inputMode="tel" /></div>
+              <div><label className="label">Chave PIX (opcional)</label><input name="pix" className="input" autoCapitalize="none" /></div>
+              <p className="muted">Fica cadastrado na Equipe como {reason?.is_test ? "candidato" : "freelancer"} do setor {sector.name}, cargo {position?.name}.</p>
+              <SubmitButton>Cadastrar e usar nesta vaga</SubmitButton>
+            </form>
+          </details>
           {hiddenSusp > 0 && <p className="muted">{hiddenSusp} pessoa(s) suspensa(s) não aparecem.</p>}
         </div>
       )}
