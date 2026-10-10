@@ -16,6 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       { href: "/pendencias", label: "Pendências", icon: "check", badge: count ?? 0 },
       { href: "/escala", label: "Escalas", icon: "grid" },
       { href: "/extras", label: "Extras", icon: "plus" },
+      { href: "/checklist", label: "Checklist", icon: "star" },
       { href: "/equipe", label: "Equipe", icon: "people" },
       { href: "/config", label: "Config.", icon: "gear" },
     ];
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     items = [
       { href: "/escala", label: "Escala", icon: "grid" },
       { href: "/extras", label: "Extras", icon: "plus" },
+      { href: "/checklist", label: "Checklist", icon: "star" },
       { href: "/equipe", label: "Equipe", icon: "people" },
     ];
   }

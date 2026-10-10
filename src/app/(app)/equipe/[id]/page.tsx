@@ -5,7 +5,8 @@ import { Flash, Page } from "@/components/ui";
 import { back, refresh, delErr } from "@/lib/act";
 import { redirect } from "next/navigation";
 import DeleteButton from "@/components/DeleteButton";
-import { dmy, fmtCpf, maskCpf, onlyDigits, today } from "@/lib/util";
+import Stars from "@/components/Stars";
+import { addDays, dmy, fmtCpf, maskCpf, onlyDigits, today } from "@/lib/util";
 
 async function salvar(formData: FormData) {
   "use server";
@@ -109,6 +110,8 @@ export default async function Pessoa({ params, searchParams }: { params: { id: s
     ctx.sb.from("suspensions").select("*").eq("person_id", p.id).order("created_at", { ascending: false }),
     ctx.sb.from("extra_requests").select("id", { count: "exact", head: true }).eq("person_id", p.id).eq("attendance", "absent"),
   ]);
+  const { data: cks } = await ctx.sb.from("checklist_people").select("checklist_runs!inner(avg,day)").eq("person_id", p.id).gte("checklist_runs.day", addDays(today(), -30));
+  const ckAvg = (cks ?? []).length ? (cks as any[]).reduce((a, r) => a + Number(r.checklist_runs.avg), 0) / cks!.length : null;
   const sectorList = await getSectors(ctx);
   const { data: shifts } = await ctx.sb.from("shifts").select("id,name,sector_id").eq("house_id", ctx.house.id).eq("active", true).order("start_time");
   const on = new Set((enabled ?? []).map((e) => e.position_id));
@@ -167,6 +170,11 @@ export default async function Pessoa({ params, searchParams }: { params: { id: s
         <div><label className="label">Chave PIX</label><input name="pix" className="input" defaultValue={p.pix ?? ""} /></div>
         <button className="btn">Salvar dados</button>
       </form>
+
+      <div className="card flex items-center justify-between">
+        <div><h2 className="font-semibold">Pontuação do checklist</h2><p className="muted">Últimos 30 dias · {(cks ?? []).length} avaliação(ões)</p></div>
+        {ckAvg != null ? <Stars value={ckAvg} /> : <span className="muted">sem notas</span>}
+      </div>
 
       <form action={habilitar} className="card space-y-3">
         <input type="hidden" name="id" value={p.id} />

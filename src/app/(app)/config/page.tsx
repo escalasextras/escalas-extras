@@ -7,6 +7,7 @@ const ITEMS = [
   ["/config/cargos", "Cargos", "Criar, renomear e desativar"],
   ["/config/setores", "Setores", "Salão, Cozinha, Bar…"],
   ["/config/turnos", "Turnos", "Horários de cada setor"],
+  ["/config/checklist", "Itens do checklist", "O que o líder confere antes de abrir"],
   ["/config/motivos", "Motivos de extra", "Lista usada ao abrir uma vaga"],
   ["/api/export", "Baixar Excel", "Extras aprovados do mês"],
 ];
